@@ -22,7 +22,9 @@ class EmotionClassifier:
             from fer import FER  # type: ignore
         except Exception as exc:
             raise RuntimeError(
-                "Emotion model dependency missing. Install with: pip install fer tensorflow-cpu"
+                "Emotion model dependency missing. "
+                "Install with: pip install fer tensorflow-cpu keras. "
+                f"Original error: {exc}"
             ) from exc
         self.model = FER(mtcnn=False)
 

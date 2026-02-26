@@ -73,7 +73,7 @@ For Streamlit Cloud deployment use:
 
 Note:
 - Cloud deploy uses `opencv-python-headless` and `runtime.txt` (`python-3.11`) for compatibility.
-- Emotion classification uses `fer` + `tensorflow-cpu`.
+- Emotion classification uses pinned `fer` + `tensorflow-cpu` + `keras` versions for cloud stability.
 
 ## Detector Tuning
 You can tune detection with:
