@@ -59,6 +59,7 @@ streamlit run app.py
 ```
 
 Then open the local URL shown in terminal, allow camera access, and click `Start`.
+If live video is black or stuck, open the `Fallback (Snapshot)` tab and use `Take a photo`.
 
 For Streamlit Cloud deployment use:
 - Branch: `main`
