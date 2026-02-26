@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 import cv2
 import numpy as np
@@ -35,10 +35,34 @@ class FaceDetector:
         )
         return list(faces)
 
-    def annotate(self, frame: np.ndarray, faces: List[Face]) -> np.ndarray:
+    def annotate(
+        self,
+        frame: np.ndarray,
+        faces: List[Face],
+        labels: Optional[List[str]] = None,
+    ) -> np.ndarray:
         annotated = frame.copy()
-        for (x, y, w, h) in faces:
+        for idx, (x, y, w, h) in enumerate(faces):
             cv2.rectangle(annotated, (x, y), (x + w, y + h), (0, 255, 0), 2)
+            if labels and idx < len(labels) and labels[idx]:
+                text = labels[idx]
+                cv2.rectangle(
+                    annotated,
+                    (x, max(0, y - 25)),
+                    (x + max(80, len(text) * 9), y),
+                    (0, 255, 0),
+                    -1,
+                )
+                cv2.putText(
+                    annotated,
+                    text,
+                    (x + 5, y - 7),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.55,
+                    (0, 0, 0),
+                    2,
+                    cv2.LINE_AA,
+                )
         cv2.putText(
             annotated,
             f"Faces: {len(faces)}",

@@ -8,28 +8,56 @@ from streamlit_webrtc import VideoProcessorBase, WebRtcMode, webrtc_streamer
 
 try:
     from face_detector import DetectionConfig, FaceDetector
+    from emotion_classifier import EmotionClassifier
 except ModuleNotFoundError:
     from src.face_detector import DetectionConfig, FaceDetector
+    from src.emotion_classifier import EmotionClassifier
 
 
 class FaceVideoProcessor(VideoProcessorBase):
-    def __init__(self, detector: FaceDetector) -> None:
+    def __init__(self, detector: FaceDetector, classifier: EmotionClassifier | None) -> None:
         self.detector = detector
+        self.classifier = classifier
 
     def recv(self, frame: av.VideoFrame) -> av.VideoFrame:
         image = frame.to_ndarray(format="bgr24")
         faces = self.detector.detect(image)
-        annotated = self.detector.annotate(image, faces)
+        labels: list[str] = []
+        if self.classifier is not None:
+            for face in faces:
+                emotion = self.classifier.predict_on_face(image, face)
+                if emotion is None:
+                    labels.append("emotion: unknown")
+                else:
+                    labels.append(f"{emotion.label} ({emotion.confidence * 100:.0f}%)")
+        annotated = self.detector.annotate(image, faces, labels=labels if labels else None)
         return av.VideoFrame.from_ndarray(annotated, format="bgr24")
 
 
-def _detect_from_uploaded_bytes(detector: FaceDetector, raw_bytes: bytes) -> np.ndarray:
+def _detect_from_uploaded_bytes(
+    detector: FaceDetector,
+    classifier: EmotionClassifier | None,
+    raw_bytes: bytes,
+) -> np.ndarray:
     array = np.frombuffer(raw_bytes, dtype=np.uint8)
     frame = cv2.imdecode(array, cv2.IMREAD_COLOR)
     if frame is None:
         raise ValueError("Could not decode image data from camera input.")
     faces = detector.detect(frame)
-    return detector.annotate(frame, faces)
+    labels: list[str] = []
+    if classifier is not None:
+        for face in faces:
+            emotion = classifier.predict_on_face(frame, face)
+            if emotion is None:
+                labels.append("emotion: unknown")
+            else:
+                labels.append(f"{emotion.label} ({emotion.confidence * 100:.0f}%)")
+    return detector.annotate(frame, faces, labels=labels if labels else None)
+
+
+@st.cache_resource
+def _load_emotion_classifier() -> EmotionClassifier:
+    return EmotionClassifier()
 
 
 def main() -> None:
@@ -46,6 +74,11 @@ def main() -> None:
         min_neighbors=int(min_neighbors),
     )
     detector = FaceDetector(config=config)
+    classifier: EmotionClassifier | None = None
+    try:
+        classifier = _load_emotion_classifier()
+    except Exception as exc:
+        st.warning(f"Emotion classification unavailable: {exc}")
 
     live_tab, fallback_tab = st.tabs(["Live (WebRTC)", "Fallback (Snapshot)"])
 
@@ -61,7 +94,7 @@ def main() -> None:
             rtc_configuration={
                 "iceServers": [{"urls": ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"]}]
             },
-            video_processor_factory=lambda: FaceVideoProcessor(detector),
+            video_processor_factory=lambda: FaceVideoProcessor(detector, classifier),
             async_processing=True,
         )
 
@@ -70,7 +103,7 @@ def main() -> None:
         shot = st.camera_input("Take a photo")
         if shot is not None:
             try:
-                annotated = _detect_from_uploaded_bytes(detector, shot.getvalue())
+                annotated = _detect_from_uploaded_bytes(detector, classifier, shot.getvalue())
                 st.image(
                     cv2.cvtColor(annotated, cv2.COLOR_BGR2RGB),
                     caption="Detected faces",

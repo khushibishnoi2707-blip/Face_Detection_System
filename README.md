@@ -7,6 +7,7 @@ A practical face detection project using OpenCV's Haar Cascade classifier.
 - Detect faces in a single image and optionally save annotated output.
 - Process full video files and optionally save annotated video output.
 - Run live face detection in browser using Streamlit.
+- Classify face emotion categories (happy, sad, angry, nervous, etc.).
 - Adjustable detector parameters for tuning sensitivity.
 
 ## Project Structure
@@ -52,6 +53,11 @@ python src/main.py --mode image --input path\to\image.jpg --output output\annota
 python src/main.py --mode video --input path\to\video.mp4 --output output\annotated.mp4 --display
 ```
 
+To run without emotion labels:
+```powershell
+python src/main.py --mode webcam --disable-emotion
+```
+
 ## Streamlit Live App
 Run the web app:
 ```powershell
@@ -67,6 +73,7 @@ For Streamlit Cloud deployment use:
 
 Note:
 - Cloud deploy uses `opencv-python-headless` and `runtime.txt` (`python-3.11`) for compatibility.
+- Emotion classification uses `fer` + `tensorflow-cpu`.
 
 ## Detector Tuning
 You can tune detection with:

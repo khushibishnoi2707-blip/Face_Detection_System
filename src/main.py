@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
+from typing import List, Optional
 
 import cv2
 
 from face_detector import DetectionConfig, FaceDetector
+from emotion_classifier import EmotionClassifier
 
 
 def parse_args() -> argparse.Namespace:
@@ -26,15 +28,43 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--scale-factor", type=float, default=1.1, help="Cascade scale factor.")
     parser.add_argument("--min-neighbors", type=int, default=5, help="Cascade min neighbors.")
+    parser.add_argument(
+        "--disable-emotion",
+        action="store_true",
+        help="Disable emotion classification labels.",
+    )
     return parser.parse_args()
 
 
-def process_image(detector: FaceDetector, input_path: Path, output_path: Path | None) -> None:
+def _emotion_labels(
+    classifier: Optional[EmotionClassifier],
+    frame,
+    faces,
+) -> List[str]:
+    if classifier is None:
+        return []
+    labels: List[str] = []
+    for face in faces:
+        result = classifier.predict_on_face(frame, face)
+        if result is None:
+            labels.append("emotion: unknown")
+            continue
+        labels.append(f"{result.label} ({result.confidence * 100:.0f}%)")
+    return labels
+
+
+def process_image(
+    detector: FaceDetector,
+    classifier: Optional[EmotionClassifier],
+    input_path: Path,
+    output_path: Path | None,
+) -> None:
     frame = cv2.imread(str(input_path))
     if frame is None:
         raise FileNotFoundError(f"Cannot read image: {input_path}")
     faces = detector.detect(frame)
-    annotated = detector.annotate(frame, faces)
+    labels = _emotion_labels(classifier, frame, faces)
+    annotated = detector.annotate(frame, faces, labels=labels)
 
     if output_path:
         output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -47,7 +77,11 @@ def process_image(detector: FaceDetector, input_path: Path, output_path: Path | 
     cv2.destroyAllWindows()
 
 
-def process_webcam(detector: FaceDetector, camera_index: int) -> None:
+def process_webcam(
+    detector: FaceDetector,
+    classifier: Optional[EmotionClassifier],
+    camera_index: int,
+) -> None:
     cap = cv2.VideoCapture(camera_index)
     if not cap.isOpened():
         raise RuntimeError(f"Cannot open webcam index {camera_index}")
@@ -58,7 +92,8 @@ def process_webcam(detector: FaceDetector, camera_index: int) -> None:
         if not ok:
             break
         faces = detector.detect(frame)
-        annotated = detector.annotate(frame, faces)
+        labels = _emotion_labels(classifier, frame, faces)
+        annotated = detector.annotate(frame, faces, labels=labels)
         cv2.imshow("Face Detection - Webcam", annotated)
 
         if cv2.waitKey(1) & 0xFF == ord("q"):
@@ -70,6 +105,7 @@ def process_webcam(detector: FaceDetector, camera_index: int) -> None:
 
 def process_video(
     detector: FaceDetector,
+    classifier: Optional[EmotionClassifier],
     input_path: Path,
     output_path: Path | None,
     display: bool,
@@ -93,7 +129,8 @@ def process_video(
         if not ok:
             break
         faces = detector.detect(frame)
-        annotated = detector.annotate(frame, faces)
+        labels = _emotion_labels(classifier, frame, faces)
+        annotated = detector.annotate(frame, faces, labels=labels)
 
         if writer:
             writer.write(annotated)
@@ -119,21 +156,35 @@ def main() -> None:
         min_neighbors=args.min_neighbors,
     )
     detector = FaceDetector(config=config)
+    classifier: Optional[EmotionClassifier] = None
+    if not args.disable_emotion:
+        try:
+            classifier = EmotionClassifier()
+            print("Emotion classification enabled.")
+        except Exception as exc:
+            print(f"Emotion classification unavailable: {exc}")
+            print("Continuing with face detection only.")
 
     if args.mode == "image":
         if not args.input:
             raise ValueError("--input is required in image mode.")
-        process_image(detector, Path(args.input), Path(args.output) if args.output else None)
+        process_image(
+            detector,
+            classifier,
+            Path(args.input),
+            Path(args.output) if args.output else None,
+        )
         return
 
     if args.mode == "webcam":
-        process_webcam(detector, args.camera_index)
+        process_webcam(detector, classifier, args.camera_index)
         return
 
     if not args.input:
         raise ValueError("--input is required in video mode.")
     process_video(
         detector,
+        classifier,
         Path(args.input),
         Path(args.output) if args.output else None,
         args.display,

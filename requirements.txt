@@ -3,3 +3,5 @@ numpy>=1.26.0
 streamlit>=1.33.0
 streamlit-webrtc>=0.47.7
 av>=11.0.0
+fer>=22.4.0
+tensorflow-cpu>=2.16.1
