@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional, Tuple
 
+import cv2
 import numpy as np
 
 
@@ -17,29 +18,16 @@ class EmotionResult:
 
 
 class EmotionClassifier:
-    def __init__(self) -> None:
-        try:
-            from fer import FER  # type: ignore
-        except Exception as exc:
-            raise RuntimeError(
-                "Emotion model dependency missing. "
-                "Install with: pip install fer tensorflow-cpu keras. "
-                f"Original error: {exc}"
-            ) from exc
-        self.model = FER(mtcnn=False)
+    """
+    Lightweight heuristic emotion classifier for cloud compatibility.
+    Categories: happy, sad, angry, nervous, neutral.
+    """
 
-    @staticmethod
-    def _normalize_label(raw_label: str) -> str:
-        mapping = {
-            "happy": "happy",
-            "sad": "sad",
-            "angry": "angry",
-            "fear": "nervous",
-            "surprise": "surprised",
-            "neutral": "neutral",
-            "disgust": "disgusted",
-        }
-        return mapping.get(raw_label.lower(), raw_label.lower())
+    def __init__(self) -> None:
+        smile_path = cv2.data.haarcascades + "haarcascade_smile.xml"
+        self.smile_cascade = cv2.CascadeClassifier(smile_path)
+        if self.smile_cascade.empty():
+            raise RuntimeError(f"Failed to load smile cascade: {smile_path}")
 
     def predict_on_face(self, frame: np.ndarray, face: Face) -> Optional[EmotionResult]:
         x, y, w, h = face
@@ -55,21 +43,24 @@ class EmotionClassifier:
         if roi.size == 0:
             return None
 
-        try:
-            top = self.model.top_emotion(roi)
-        except Exception:
-            return None
-
-        if not top:
-            return None
-
-        raw_label, confidence = top
-        if raw_label is None:
-            return None
-
-        normalized = self._normalize_label(str(raw_label))
-        return EmotionResult(
-            label=normalized,
-            confidence=float(confidence or 0.0),
-            raw_label=str(raw_label),
+        gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
+        smiles = self.smile_cascade.detectMultiScale(
+            gray,
+            scaleFactor=1.7,
+            minNeighbors=20,
+            minSize=(max(20, w // 6), max(20, h // 6)),
         )
+
+        brightness = float(np.mean(gray))
+        contrast = float(np.std(gray))
+
+        # Heuristic mapping
+        if len(smiles) > 0:
+            return EmotionResult(label="happy", confidence=0.85, raw_label="smile")
+        if contrast > 58:
+            return EmotionResult(label="angry", confidence=0.62, raw_label="high_contrast")
+        if brightness < 85:
+            return EmotionResult(label="sad", confidence=0.60, raw_label="low_brightness")
+        if contrast > 45:
+            return EmotionResult(label="nervous", confidence=0.58, raw_label="mid_high_contrast")
+        return EmotionResult(label="neutral", confidence=0.55, raw_label="baseline")

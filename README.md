@@ -72,8 +72,9 @@ For Streamlit Cloud deployment use:
 - Main file path: `app.py`
 
 Note:
-- Cloud deploy uses `opencv-python-headless` and `runtime.txt` (`python-3.11`) for compatibility.
-- Emotion classification uses pinned `fer` + `tensorflow-cpu` + `keras` versions for cloud stability.
+- Cloud deploy uses `opencv-python-headless` for compatibility.
+- Emotion classification is implemented with a lightweight OpenCV heuristic classifier
+  (happy/sad/angry/nervous/neutral) to avoid heavy TensorFlow dependencies on Streamlit Cloud.
 
 ## Detector Tuning
 You can tune detection with:

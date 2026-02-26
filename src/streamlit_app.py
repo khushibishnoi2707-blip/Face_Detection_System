@@ -107,7 +107,7 @@ def main() -> None:
                 st.image(
                     cv2.cvtColor(annotated, cv2.COLOR_BGR2RGB),
                     caption="Detected faces",
-                    use_container_width=True,
+                    width="stretch",
                 )
             except Exception as exc:
                 st.error(f"Failed to process snapshot: {exc}")
