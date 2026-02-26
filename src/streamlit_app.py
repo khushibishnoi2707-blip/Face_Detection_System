@@ -83,20 +83,26 @@ def main() -> None:
     live_tab, fallback_tab = st.tabs(["Live (WebRTC)", "Fallback (Snapshot)"])
 
     with live_tab:
-        st.info("Grant camera permission and click Start. If this tab stays black, use Fallback.")
-        webrtc_streamer(
-            key="face-detection-live",
-            mode=WebRtcMode.SENDRECV,
-            media_stream_constraints={
-                "video": {"width": {"ideal": 640}, "height": {"ideal": 480}, "facingMode": "user"},
-                "audio": False,
-            },
-            rtc_configuration={
-                "iceServers": [{"urls": ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"]}]
-            },
-            video_processor_factory=lambda: FaceVideoProcessor(detector, classifier),
-            async_processing=True,
-        )
+        st.info("Live mode is experimental on Streamlit Cloud. If it fails, use Fallback.")
+        enable_live = st.checkbox("Enable Live WebRTC", value=False)
+        if enable_live:
+            try:
+                webrtc_streamer(
+                    key="face-detection-live",
+                    mode=WebRtcMode.SENDRECV,
+                    media_stream_constraints={
+                        "video": {"width": {"ideal": 640}, "height": {"ideal": 480}, "facingMode": "user"},
+                        "audio": False,
+                    },
+                    rtc_configuration={
+                        "iceServers": [{"urls": ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"]}]
+                    },
+                    video_processor_factory=lambda: FaceVideoProcessor(detector, classifier),
+                    async_processing=True,
+                )
+            except Exception as exc:
+                st.error(f"Live WebRTC failed on this environment: {exc}")
+                st.info("Use the Fallback (Snapshot) tab for stable detection.")
 
     with fallback_tab:
         st.write("Use this if live stream is blocked by browser/network policy.")
