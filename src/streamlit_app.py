@@ -4,7 +4,10 @@ import av
 import streamlit as st
 from streamlit_webrtc import VideoProcessorBase, WebRtcMode, webrtc_streamer
 
-from face_detector import DetectionConfig, FaceDetector
+try:
+    from face_detector import DetectionConfig, FaceDetector
+except ModuleNotFoundError:
+    from src.face_detector import DetectionConfig, FaceDetector
 
 
 class FaceVideoProcessor(VideoProcessorBase):

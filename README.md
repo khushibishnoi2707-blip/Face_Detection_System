@@ -12,6 +12,7 @@ A practical face detection project using OpenCV's Haar Cascade classifier.
 ## Project Structure
 ```text
 face_Detecrtion/
+|-- app.py
 |-- src/
 |   |-- face_detector.py
 |   |-- main.py
@@ -54,10 +55,14 @@ python src/main.py --mode video --input path\to\video.mp4 --output output\annota
 ## Streamlit Live App
 Run the web app:
 ```powershell
-streamlit run src/streamlit_app.py
+streamlit run app.py
 ```
 
 Then open the local URL shown in terminal, allow camera access, and click `Start`.
+
+For Streamlit Cloud deployment use:
+- Branch: `main`
+- Main file path: `app.py`
 
 ## Detector Tuning
 You can tune detection with:
