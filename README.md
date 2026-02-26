@@ -64,6 +64,9 @@ For Streamlit Cloud deployment use:
 - Branch: `main`
 - Main file path: `app.py`
 
+Note:
+- Cloud deploy uses `opencv-python-headless` and `runtime.txt` (`python-3.11`) for compatibility.
+
 ## Detector Tuning
 You can tune detection with:
 - `--scale-factor` (default `1.1`)
